@@ -1,8 +1,9 @@
 ---
 title: "IODS course project"
+author: Tuukka Kangas
 output:
   html_document:
-    theme: cosmo
+    theme: simplex
     toc: true
     toc_depth: 2
     fig_caption: true

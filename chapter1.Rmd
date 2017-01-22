@@ -1,4 +1,13 @@
 
 # About the project
 
-*Write a short description about the course and add a link to your github repository here. This is an R markdown (.Rmd) file so you can use R markdown syntax. See the 'Useful links' page in the mooc area (chapter 1) for instructions.*
+This my first update for this course. I'm really excited about this course because "open data" fascinates me. I have some experience with R and GitHub so I hope that I won't have some much problem with those.
+
+## Personal goals for this course
+
+* Learn to be better with R
+* Learn more about data analysis
+* Learn to use English when "doing statistics"
+
+## Link to Github repository
+[My repository](https://github.com/tvkangas/IODS-project)
