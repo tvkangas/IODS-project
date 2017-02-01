@@ -1,7 +1,86 @@
-# Insert chapter 2 title here
+```{r include = FALSE}
+library(GGally)
+library(ggplot2)
+```
 
-*Describe the work you have done this week and summarize your learning.*
+# Regression and model validation
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using  
+The theme of the second week was regression and model validation. 
+
+As a prelude for this week main theme there were some data pretreatment. More about that can be seen from other file. Main idea in the pretreatment was that we recuded the amount of the variables by creating sum variables.
+
+##Preparation and overview
+The data that is used is a survey data from 2014 and 2015. It cover many variables about teaching and learning. There is also some background variables.
+
+First task is to take a quick look of the data. First three commands gives us basic information from data. The fourth one is in two parts. First we give instructions for plotting. After that we can easily do the plot. 
+
+```{r include = FALSE}
+setwd("C:/Users/Tuukka/Desktop/IODS-project/data")
+learndata <- read.csv("learnAnalysisdata.csv")
+```
+
+```{r}
+head(learndata)
+str(learndata)
+summary(learndata)
+summaryGraphs <- ggpairs(learndata, lower = list(combo = wrap("facethist", bins = 20)))
+summaryGraphs
+```
+
+The first table has headings and first six rows from the data frame. It doesn't give us much information: there is seven variables and one variable is only a running number. The second one gives us more information. There is one nominal variable: gender. Then there is three integer variables and three double variables. The summary table has more informations from the seven variables. There is more female answers than male. From numeric data there is more information: means, medians ja quartiles. 
+
+From the graphical summary can be seen more information. It seems that there is some differences in the means between genders, but they are not big enough to be statistically significant. There is some differences in the scatter plots. We will use correlations more later.
+
+##Regression model
+The next task is to do regression model for exam points (variable points). For that we will use three explanatory variable. It seems that the best candidates are attitude, stra and surf. Variables age and deep have lower correlation coefficient than the picked three variables. Attitude refers attitude toward statistics, stra strategic and surd surface approach.
+
+We can do the model easily with function lm.
+```{r}
+learnModel <- lm(points ~ attitude + stra + surf, data = learndata)
+summary(learnModel)
+```
+
+The regression model has three parts. 
+
+$$ y = \alpha + \beta x + \epsilon
+$$ 
+Where alpha refers to the constant part, where our model intercepts the y-axis. Beta and x refers to our explanatory variables and epsilon is the residual.
+
+In the summary table (Intercept) refers to alpha-part. For attitude, stra and surf there are estimates for beta-parts. Absolute values of their estimates are less than one. Standard error of the attitude is much more smaller than with stra and surf.
+
+Before interpreting p-values, there is a null hypothesis for all three explanatory variables. The null hypothesis is that their estimates for beta is zero. For testing of the null hypothesis there is t-test.  Only for attitude the p-value is small enough for rejecting null hypothesis. With stra and surf there is not enough evindence for the rejection. So we can do a new regression model with one explanatory variable, attitude.
+
+```{r}
+learnModel2 <- lm(points ~ attitude, data = learndata)
+summary(learnModel2)
+```
+
+The easiest way to explain the regression model is do scatter plot that has a regression line.
+
+```{r echo = FALSE}
+plot(learndata$attitude, learndata$points, xlab="Attitude", ylab="Points", xlim=c(min(learndata$attitude)-5, max(learndata$attitude)+5), ylim=c(min(learndata$points)-10, max(learndata$points)+10))
+abline(learnModel2, lwd=2)
+```
+
+So when attitude increases by one then points increases by 0.35 (value of the beta estimate). The regression line is fitted so that the sum of the squares of the residuals (distances from observations to the line) is minimized. Beta is the slope of the line. 
+
+R-squared has a value of 0.1856 in the one explanatory variable model. R-squared tells us the proportion of the variance in the dependent variable can be explained with the independent variable. R-squared has values between 0 and 1. In this case we can explain approximately 19 % of the variance of points with attitude. That is not too high number, but it can't be improved with extra independent variables much.
+
+##Model validation
+We can do some model validations to see if the model is good. The validation is needed to do because in the linear regression model has some assumptions for example errors are normally distributed.
+
+```{r}
+par(mfrow=c(2,2))
+plot(learnModel2, which = c(1,2,5))
+```
+
+We can check if the residuals are normally distributed with QQ-plot. We can see that there is problems in high and low values, but problems are not too big so we can say that the model doesn't break the normality assumption.
+
+One assumption is that the errors have constant variance. That can be explored from the residuals vs fitted scatter plot. It seems that there is no clear pattern in the plot so we can say that errors have constant variance.
+
+The last one handles leverage. If low number of observations have high impact for the model there might be some problems in the model. Most of the points have low leverage and there is no clear outliers so there is no influential cases.
+
+All in all everything seems to be okay. There is some problems with normality assumption, but the issues are not big.
+
+##Summary
+This week main theme was regression model and its validation. I provided linear regression model with one expalanatory variable. To conclude attitude explains approximately 20 % of the variance of the points. I did basic validation tests.
