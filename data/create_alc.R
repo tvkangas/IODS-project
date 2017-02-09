@@ -21,7 +21,7 @@ dim(student_por)
 head(student_por)
 
 
-#Both have 33 variables. Stundet_mat has 395 and student_por 649 observations. There is some background variables like sex, age, family size and so on. Then there are
+#Both have same 33 variables. Stundet_mat has 395 and student_por 649 observations. There is some background variables like sex, age, family size and so on. Then there are
 #multiple questions like health status, alcohol consuption and is responder taking some extra-curricular activities.
 
 #Next task is to merge two data sets. The parameters that is used in merge process can be seen on function merge().

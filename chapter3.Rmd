@@ -1,0 +1,178 @@
+```{r include = FALSE}
+library(GGally)
+library(ggplot2)
+library(dplyr)
+library(gmodels)
+library(boot)
+```
+
+# Logistic regression
+
+The theme of the third week was logistic regression.
+
+As a prelude for this week main theme there were some data pretreatment. More about that can be seen from other file. Main idea in the pretreatment was that we merged two data sets and calculated two more variables.
+
+##Preparation and overview
+
+The data that is used is from two separate surveys. The theme is the student alcohol consumption. There is 35 variables from the survey and one for the running number. We have 382 observations. Below can be seen functions for to observate the variables and data set.
+
+
+```{r include = FALSE}
+setwd("C:/Users/Tuukka/Desktop/IODS-project/data")
+alcodata <- read.csv("stundentAlcoholData.csv")
+```
+
+```{r}
+head(alcodata)
+str(alcodata)
+summary(alcodata)
+```
+
+##Logistic regression model and analysis
+
+###Relationships between chosen variables
+
+Next task was to observe relationships between alcohol consumption and other four variables. I chose sex (_sex_), age (_age_), mother's education (_Medu_) and extra-curricular activities (_activities_). Variables _sex_ and _activities_ are already binary. Variable _age_ has 7 different values from 15 to 22. To make regression model easier to interpret I recoded variable _age_ to the variable _ageGroup_ with two groups: age under 18 and age at least 18. Also variable _Medu_ had five values. I merged options from 0 to 2 and 3 to 4. I named them "low education" and "high education"
+
+```{r}
+#Creating two new variables from original variables age and Medu. I used if else syntax.
+alcodata$ageGroup <- ifelse(alcodata$age < 18, 
+c("15-17"), c("18-22"))
+
+alcodata$MeduGroup <- ifelse(alcodata$Medu > 2,
+c("high education"), c ("low education"))
+```
+
+As a hypothesis I state that there is no differences between females of males. This might easily be false, but I am not familiar with portuguese culture. I think older people will use more alcohol. I also think that mother's education have some effect, I believe that if mother has low education level then her child is more likely high consumer of alcohol. I think that extra-curricular activities doesn't affect to alcohol the consumption. 
+
+To see if there is relationship between two categorial variables I used chi-squared test as a statistical test. The main idea of chi-squared test is to test null hypothesis that is there is no differences between the groups. If the p-value of the test is less than 0,05 (or 0,01) null hypothesis can be rejected. More about this test can be read from [Wikipedia](https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test).
+
+I will use function CrossTable() from package _gmodels_ to do cross-tabulations and chi-squared tests. I will only print counts, row percentages and chi-squared test results.
+
+```{r}
+CrossTable(alcodata$ageGroup, alcodata$high_use, prop.r = TRUE, prop.c = FALSE, prop.t=FALSE, prop.chisq=FALSE, chisq = TRUE, format="SPSS")
+CrossTable(alcodata$MeduGroup, alcodata$high_use, prop.r = TRUE, prop.c = FALSE, prop.t=FALSE, prop.chisq=FALSE, chisq = TRUE, format="SPSS")
+CrossTable(alcodata$sex, alcodata$high_use, prop.r = TRUE, prop.c = FALSE, prop.t=FALSE, prop.chisq=FALSE, chisq = TRUE, format="SPSS")
+CrossTable(alcodata$activities, alcodata$high_use, prop.r = TRUE, prop.c = FALSE, prop.t=FALSE, prop.chisq=FALSE, chisq = TRUE, format="SPSS")
+```
+
+As a result we get multiple tables and some other numerical test results. It seems that there is no differences between groups in extra-curricular activities, age and mother's education level. Mother's education level has quite low p-value, but it is almost 0,1 so there is too high risk to reject null hypothesis. It seems that there is differences between males and females. 39 % of males belong to the high use group, but only one of five females are high users. It seems that my hypotheses were quite bad, one of four was right. 
+
+I illustrate differences between sex with bar chart.
+
+
+```{r}
+alcodata_HighUseSex <- alcodata %>% group_by(sex, high_use) %>% summarise(count = n())
+alcodata_sex <- alcodata %>% group_by(sex) %>% summarise(count=n())
+
+alcodata_HighUseSex[1,3] <- round(alcodata_HighUseSex[1,3] / alcodata_sex[1,2] * 100, digits=0)
+alcodata_HighUseSex[2,3] <- round(alcodata_HighUseSex[2,3] / alcodata_sex[1,2] * 100, digits=0)
+alcodata_HighUseSex[3,3] <- round(alcodata_HighUseSex[3,3] / alcodata_sex[2,2] * 100, digits=0)
+alcodata_HighUseSex[4,3] <- round(alcodata_HighUseSex[4,3] / alcodata_sex[2,2] * 100, digits=0)
+colnames(alcodata_HighUseSex)[3] <- "percentage"
+
+barchartSexHighuse <- ggplot() + geom_bar(aes(y = percentage, x = sex, fill = high_use), data = alcodata_HighUseSex,
+                           stat="identity") +
+  geom_text(data=alcodata_HighUseSex, aes(x = sex, y = percentage,
+                                             label = paste0(percentage,"%")), size=4, position = position_dodge(width = 0.7)) +
+  ggtitle("Percentages of high users of alcohol by sex")
+
+barchartSexHighuse
+```
+
+
+###Logistic regression
+
+First I create a model with glm function. I have only binary variables. Next chunk of code will provide us the summary of fitted model and odds ratios with the confidence intervals.
+```{r}
+modelAlco <- glm(high_use ~ activities + ageGroup + sex + MeduGroup, data = alcodata, family = "binomial")
+modelAlco
+summary(modelAlco)
+
+alcoOddRat <- coef(modelAlco) %>% exp
+alcoConfInt <- confint(modelAlco) %>% exp
+cbind(alcoOddRat, alcoConfInt)
+```
+
+In the previous chapter Regression and model validation is more about the theory of the regression model. As we saw earlier, the only variable that has statistically significant estimate in the model is sex. Eastimates of activities, age and mother's educations have p-value greater than 0,05 so there is no enough evindence to reject null hypothesis. The same story is with the odds ratios. The first observation is that the confidence interval of the activities, age and mother's education cointains 1,0. If the odds ratio is 1,0 then the probability is same for both groups: there same probability for both 15-17 and 18-22 to be high user. The confidence interval of the sex is from 1,5 to 3,9. If the odds ratio is 1,5 that means men are 1,5 more likely high users. With the odds ratio 3,9 it's almost 4 times more probable. The confidence interval gives, in this case, the where the real odds ratio will be 95 times out of 100 cases.
+
+The next step is to observe if my model can predict high consumption of alcohol.
+
+```{r}
+probabAlco <- predict(modelAlco, type = "response")
+alcodata <- mutate(alcodata, probability = probabAlco)
+alcodata <- mutate(alcodata, prediction = probabAlco > 0.5)
+table(high_use = alcodata$high_use, prediction = probabAlco > 0.5)
+scatPlot <- ggplot(alcodata, aes(x = probability, y = high_use, col = prediction)) + geom_point()
+scatPlot
+table(high_use = alcodata$high_use, prediction = alcodata$prediction) %>% prop.table() %>% addmargins()
+```
+
+It seems that my model can't predict with high accuracy the results. Many cases that are true are predicted to be false. There is not much cases when false is predicted to be true, but not many true-true -combinatios either. In the scatter plot can be seen that there is quite low amount of TRUE predictions with probability of 0,5. Total training error can be calculated easily from the cross-tabulation by summing up TRUE-FALSE and FALSE-TRUE combinations or with the code below. The total training error is approximately 0,3 that is too much. It's only slightly better than a simple guess with probabilities 0,5 and 0,5. I had to keep all four variables with me because without them the model would be even worse.
+
+```{r}
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+loss_func(class = alcodata$high_use, prob = alcodata$probability)
+```
+
+##Cross-validation
+
+Next I will observe the cross-validation. With that I have better picture how my model predicts results.
+
+```{r}
+loss_func(class = alcodata$high_use, prob = alcodata$probability)
+
+# K-fold cross-validation
+cv <- cv.glm(data = alcodata, cost = loss_func, glmfit = modelAlco, K = 10)
+cv$delta[1]
+```
+
+It seems that the cross-validation with 10 fold gives slighlty bigger error, but the difference is negligible. My model is worse than in DataCamp. Next step was to add more variables. In first place I took 11 variables to the model. Then I calculated both training and testing errors and added them to the table. I reduced one explanatory variable each round. 
+
+
+```{r include = FALSE}
+r11 <- c(11, 0.2172775, 0.2356021)
+results <- matrix(r11, 1)
+r10 <- c(10, 0.2251309, 0.2329843)
+results <- rbind(results, r10)
+r9 <- c(9, 0.2303665, 0.2329843)
+results <- rbind(results, r9)
+r8 <- c(8, 0.2905759, 0.3062827)
+results <- rbind(results, r8)
+r7 <- c(7, 0.2853403, 0.2984293)
+results <- rbind(results, r7)
+r6 <- c(6, 0.2905759, 0.2958115)
+results <- rbind(results, r6)
+r5 <- c(5, 0.2984293, 0.3036649)
+results <- rbind(results, r5)
+r4 <- c(4, 0.2984293, 0.3115183)
+results <- rbind(results, r4)
+r3 <- c(3, 0.2984293, 0.2984293)
+results <- rbind(results, r3)
+r2 <- c(2, 0.2984293, 0.2984293)
+results <- rbind(results, r2)
+r1 <- c(1, 0.2984293, 0.2984293)
+results <- rbind(results, r1)
+resultsFrame <- data.frame(results)
+colnames(resultsFrame) <- c("numbVar", "trainingError", "testingError")
+```
+
+```{r}
+resultsFrame
+ggplot(data=resultsFrame, aes(x=numbVar)) +
+    geom_line(aes(y=trainingError), colour="blue") +
+    geom_line(aes(y=testingError), colour="red") +
+    geom_point(aes(y=testingError), colour="red") +
+    geom_point(aes(y=trainingError), colour="blue") +
+    ggtitle("Training and testing error with number of variables") +
+    labs(y = "Value", x = "Number of variables", caption = "Blues is for training error and red for testing error")
+```
+
+As from the line graphs can be seen the error is increasing with less variables. There is quite dramatic change form 8 to 9. That indicates that there were some very good variable to predict results. I will remain that for a mystery. 
+
+##Summary
+The subject for this week was logistic regression and cross-validation. I made a model to predict is the responser's alcohol consumption. Only statistically significant explanatory variable was sex: males are more likely to be high users of alcohol.
