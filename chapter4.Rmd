@@ -1,0 +1,144 @@
+```{r include = FALSE}
+library(MASS)
+library(corrplot)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+```
+
+# Clustering and classification
+
+The theme of the fourth week was clustering and classification.
+
+##Data 
+
+The Boston data set has 14 variables and 506 observations. They discribe housing values in suburbs of Boston. All variables are numeric.
+
+```{r include = FALSE}
+data("Boston")
+cor_matrix<-cor(Boston) 
+cor_matrix %>% round(digits = 2)
+```
+
+
+```{r}
+
+summary(Boston)
+str(Boston)
+pairs(Boston)
+
+corrplot(cor_matrix, method="circle", type="lower", cl.pos = "r", tl.pos = "d", tl.cex = 0.6, tl.col="black")
+```
+
+Variables have very different values. I think that indicates that the suburbs are not the same. With the correlation plot you can see that there is some variables that have big correlation with each other. For example variable _dis_ (weighted mean of distances to five Boston employment centres) has a high correlation with variables _age_, _nox_ and _indus_. Also _rad_ and _tax_ have high correlation with each other.
+
+Because variables have very different ranges of values, it's convenient to standardize the dataset. After standardization the means of the varibles are zero. 
+
+```{r}
+data_scaled <- scale(Boston)
+summary(data_scaled)
+```
+
+```{r include = FALSE}
+data_scaled <- as.data.frame(data_scaled)
+```
+
+After the standardization I recoded variable crim to be factorial. After that I devided the dataset to two parts: train and test sets. The train set have 80 % of the data.
+
+```{r}
+crim_scaled <- data_scaled$crim
+summary(crim_scaled)
+bins <- quantile(crim_scaled)
+crime <- cut(crim_scaled, breaks = bins, include.lowest = TRUE, labels=c("low", "med_low", "med_high", "high"))
+data_scaled <- dplyr::select(data_scaled, -crim)
+data_scaled <- data.frame(data_scaled, crime)
+
+```
+```{r}
+n <- nrow(data_scaled)
+ind <- sample(n,  size = n * 0.8)
+train <- data_scaled[ind,]
+test <- data_scaled[-ind,]
+```
+
+##Linear discriminant analysis
+
+After some pretreatment with the data I provided linear discriminant analysis. I used as a target variable _crim\_scaled_. I used all other variables as predictors.
+
+```{r}
+lda.fit <- lda(crime ~ ., data = train)
+
+lda.fit
+
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+classes <- as.numeric(train$crime)
+
+plot(lda.fit, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda.fit, myscale = 1)
+```
+
+As you can see my LDA biplot is quite a mess. It seems that LDA do grouping quite efficiently because all blue (_high_) are on the right side and black (low) and red (med_low) are on the left side. Green group (med_high) is distributed to the both sides. 
+
+After that I try to predict results with my test data. I remove variable _crime_ from the data and calculate them again with my model
+
+```{r}
+correct_classes <- test$crime
+test <- dplyr::select(test, -crime)
+
+lda.pred <- predict(lda.fit, newdata = test)
+table(correct = correct_classes, predicted = lda.pred$class)
+```
+
+It seems that my model predicts quite efficiently category _high_ (27 out of 28), but other categories there is more problems: _med\_high_ is still quite good (18/25), but _med\_low_ (12/27) and _low_ (14/22) are quite bad. So my model can predict the high crime rate, but there is problems with lower rates. I run this few times and results were same.
+
+##K-means
+
+For k-means I reloaded the original dataset and I standardized it. After that I calculated eucledian distances.
+
+```{r include = FALSE}
+data("Boston")
+data_scaled <- scale(Boston)
+data_scaled <- as.data.frame(data_scaled)
+```
+
+```{r}
+dist_eu <- dist(Boston)
+summary(dist_eu)
+```
+
+Distances have mean 226. The lowest value is little over 1 and the highest value is 626. 
+
+Next step is to do some k-means clustering. But before that I tried to find optimal value for the number of clusters. 
+
+
+```{r}
+set.seed(123)
+
+k_max <- 10
+twcss <- sapply(1:k_max, function(k){kmeans(dist_eu, k)$tot.withinss})
+
+plot(1:k_max, twcss, type='b')
+```
+
+Optimal value seems to be 2.
+```{r}
+km <-kmeans(dist_eu, centers = 2)
+
+pairs(Boston, col = km$cluster)
+```
+
+```{r include = FALSE}
+km
+```
+
+Clustering explains 80 % of the variance. That can be seen from _Within cluster sum of squares by cluster_. It seems that the efficiency of clustering varies quite much between different variables. There is some examples where clustering separates groups efficiently (ptratio vs crim, nox vs rm), but in some cases groups are shuffled quite much (e.g. lstat vs medv).
+
+
