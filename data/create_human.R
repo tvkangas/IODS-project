@@ -1,4 +1,7 @@
 library(plyr)
+library(stringr)
+library(tidyr)
+library(dplyr)
 
 hd <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/human_development.csv", stringsAsFactors = F)
 gii <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/gender_inequality.csv", stringsAsFactors = F, na.strings = "..")
@@ -43,5 +46,30 @@ gii <- mutate(gii, gender_lab_ratio = lab_force_fml / lab_force_male)
 human <- merge(gii, hd, by.x = "country", by.y = "country")
 human <- rename(human, replace = c("rank.x" = "hdi_rank", "rank.y" = "rank_gii"))
 
+####################
+#String manipulation
+
+human$gni_pc <- str_replace(human$gni_pc, pattern=",", replace ="") %>% as.numeric
+
+####################
+#Reducing amount of variables and filter out rows with empty values
+keep <- c("country", "gender_edu_ratio", "gender_lab_ratio", "life_exp", "exp_edu_year", "gni_pc", "mat_mor_ratio", "adol_birrate", "repr_parl")
+human <- select(human, one_of(keep))
+data.frame(human[-1], comp = complete.cases(human))
+humanFilt <- filter(human,complete.cases(human))
+
+#################################################
+#Find and filter out cases that are not countries
+humanFilt <-  humanFilt[ ! humanFilt$country %in% c("East Asia and the Pacific", "Europe and Central Asia", "Latin America and the Caribbean", "Sub-Saharan Africa", "South Asia", "World", "Arab States"), ]
+
+################
+#Define rownames
+rownames(humanFilt) <- humanFilt$country
+humanFilt <- select(humanFilt, -country)
+
+
+############
+#Saving file
+
 setwd("C:/Users/Tuukka/Desktop/IODS-project/data")
-write.csv(human, file="humandata.csv")
+write.csv(humanFilt, file="humandata.csv")
